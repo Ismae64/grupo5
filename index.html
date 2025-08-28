@@ -1,149 +1,65 @@
 <!doctype html>
 <html lang="es">
-<head>
 <meta charset="utf-8" />
+<title>Demo fácil: validar + sanitizar</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Clima y Temperatura en Tiempo Real en RD</title>
-
-
 <style>
-  :root { font-family: system-ui, Segoe UI, Roboto, Arial; }
-  body { display:grid; place-items:center; min-height:100dvh; background:#f6f6f6; margin:0; padding:24px; }
-  .card { width:min(560px, 94vw); background:white; border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.08); padding:22px; }
-  h1 { margin:0 0 14px; text-align:center; font-size:1.6rem; line-height:1.2; }
-  .panel { background:linear-gradient(#bfe6ff,#a9d8f5); border-radius:14px; padding:18px 18px 8px; position:relative; overflow:hidden; }
-  .left { display:flex; gap:12px; align-items:baseline; }
-  .temp { font-size:64px; font-weight:800; }
-  .deg { font-size:28px; margin-left:4px; }
-  .city { font-size:36px; font-weight:700; margin:4px 0 10px; }
-  .row { display:flex; justify-content:space-between; font-weight:600; padding:10px 2px 0; color:#222; }
-  .sub { font-size:14px; opacity:.75 }
-  .mounts { position:absolute; inset:auto -20px -22px -20px; height:76px; background:
-    radial-gradient(#5fb46b,120px 40px at 20% 90%) no-repeat,
-    radial-gradient(#5fb46b,140px 46px at 60% 90%) no-repeat,
-    radial-gradient(#4aa65a,200px 60px at 88% 90%) no-repeat; opacity:.5; }
-  .sun { position:absolute; right:26px; top:10px; font-size:56px; }
-  .search { margin-top:14px; display:flex; gap:8px; }
-  input { flex:1; padding:12px 14px; border-radius:12px; border:1px solid #ddd; font-size:16px; }
-  button { padding:12px 16px; border-radius:12px; border:0; background:#111; color:#fff; font-weight:600; cursor:pointer; }
-  .pill { font-size:14px; padding:2px 10px; border-radius:999px; background:#fff8; }
-  .muted { color:#444; }
+  body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px}
+  input,textarea,button{width:100%;padding:10px;margin:6px 0;border:1px solid #ccc;border-radius:8px}
+  input:invalid,textarea:invalid{border-color:#d33}
+  pre{background:#f7f7f7;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-word}
+  .ok{color:#155724;background:#d4edda;border:1px solid #c3e6cb;padding:8px;border-radius:8px}
+  .bad{color:#721c24;background:#f8d7da;border:1px solid #f5c6cb;padding:8px;border-radius:8px}
 </style>
-</head>
 
+<h1>Validación + Sanitización (ultra simple)</h1>
 
+<form id="f" novalidate>
+  <label>Correo</label>
+  <input id="email" type="email" required placeholder="tu@correo.com">
 
+  <label>Nombre (solo letras y espacios, 2–60)</label>
+  <input id="name" required pattern="^[A-Za-zÁ-Úá-úÑñ ]{2,60}$" placeholder="Ej. Juan Pérez">
 
-<body>
+  <label>Mensaje (máx. 300)</label>
+  <textarea id="msg" maxlength="300" rows="4" placeholder="Escribe tu mensaje..."></textarea>
 
-  <div class="card">
-    <h1>Clima y Temperatura en Tiempo Real en RD
-        <span style="color: rgb(175, 0, 0);">Grupo #5</span>
-    </h1>
+  <div id="status"></div>
+  <button>Previsualizar</button>
+</form>
 
-    <div class="panel">
-      <div class="sun" id="icon" aria-hidden="true">☀️</div>
-      <div class="left">
-        <div><span class="temp" id="temp">--</span><span class="deg">°</span></div>
-        <div>
-          <div class="sub"><span id="season">—</span> <span id="minmax" class="pill">--°–--°</span></div>
-          <div class="city" id="city">Cargando…</div>
-        </div>
-      </div>
-      <div class="mounts"></div>
-    </div>
-
-    <div class="row">
-      <div><span id="time">--:--</span> <span class="sub" id="ampm"></span></div>
-      <div class="muted" id="date">—</div>
-    </div>
-
-    <form class="search" id="form">
-      <input id="q" placeholder="Buscar la temperatura de tu ciudad (ej. Azua, La Romana, Nagua)"/>
-      <button type="submit">Buscar</button>
-    </form>
-  </div>
+<h2>Vista previa segura</h2>
+<pre id="out">(sin datos)</pre>
 
 <script>
-const WMO_ICON = (code, day=true) => {
- 
-  const map = {
-    0: day ? "☀️" : "🌙",                          // despejado
-    1: "🌤️", 2: "⛅", 3: "☁️",                      // poco nublado → nublado
-    45: "🌫️", 48: "🌫️",                             // niebla
-    51: "🌦️", 53: "🌦️", 55: "🌦️",                   // llovizna
-    61: "🌧️", 63: "🌧️", 65: "🌧️",                   // lluvia
-    66: "🌧️", 67: "🌧️",                             // lluvia helada
-    71: "🌨️", 73: "🌨️", 75: "❄️",                   // nieve
-    77: "🌨️", 80: "🌧️", 81: "🌧️", 82: "⛈️",         // chubascos
-    95: "⛈️", 96: "⛈️", 99: "⛈️"                      // tormenta
+  const E = s => String(s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;").replace(/"/g,"&quot;")
+    .replace(/'/g,"&#39;"); // escape básico contra XSS
+
+  const clean = s => String(s).trim()
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,"") // quita <script>
+    .replace(/<\/?[^>]+>/g,"")                         // quita etiquetas
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");  // control chars
+
+  f.onsubmit = (e) => {
+    e.preventDefault();
+    if (!f.checkValidity()){
+      status.innerHTML = '<div class="bad">Revisa los campos en rojo.</div>';
+      return;
+    }
+    const email = clean(email.value).slice(0,100);
+    const name  = clean(name.value).slice(0,60);
+    const msg   = clean(msg.value).slice(0,300);
+
+    // bloqueo muy básico de inyección (demo)
+    if (/\b(select|insert|update|delete|drop|union|--|#|;)\b/i.test(msg)) {
+      status.innerHTML = '<div class="bad">Patrón no permitido en el mensaje.</div>';
+      return;
+    }
+
+    status.innerHTML = '<div class="ok">Validado y sanitizado.</div>';
+    out.textContent = `Correo: ${E(email)}\nNombre: ${E(name)}\nMensaje:\n${E(msg)}`;
   };
-  return map[code] ?? "🌡️";
-};
-
-const seasonOf = (m) => (["Invierno","Invierno","Primavera","Primavera","Primavera","Verano","Verano","Verano","Otoño","Otoño","Otoño","Invierno"])[m];
-
-async function geocode(city) {
-  const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
-  url.searchParams.set("name", city);
-  url.searchParams.set("language", "es");
-  url.searchParams.set("count", "5");
- 
-  url.searchParams.set("country", "DO");
-  const r = await fetch(url);
-  const j = await r.json();
-  if (!j.results || !j.results.length) throw new Error("No se encontró la ciudad");
-  return j.results[0]; 
-}
-
-async function weather(lat, lon, tz) {
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", lat);
-  url.searchParams.set("longitude", lon);
-  url.searchParams.set("current", "temperature_2m,apparent_temperature,weather_code,is_day");
-  url.searchParams.set("daily", "temperature_2m_max,temperature_2m_min");
-  url.searchParams.set("timezone", tz || "auto");
-  const r = await fetch(url);
-  return r.json();
-}
-
-function fmtTime(date) {
-  const h = date.getHours();
-  const m = String(date.getMinutes()).padStart(2,"0");
-  const ampm = h >= 12 ? "PM" : "AM";
-  const hr12 = (h % 12) || 12;
-  return { time: `${hr12}:${m}`, ampm };
-}
-
-async function load(cityName="Santo Domingo") {
-  try {
-    const place = await geocode(cityName);
-    const data = await weather(place.latitude, place.longitude, place.timezone);
-    const c = data.current;
-    const d = data.daily;
-
-    document.getElementById("city").textContent = `${place.name}${place.admin1 ? ", " + place.admin1 : ""}`;
-    document.getElementById("temp").textContent = Math.round(c.temperature_2m);
-    document.getElementById("minmax").textContent = `${Math.round(d.temperature_2m_min[0])}°–${Math.round(d.temperature_2m_max[0])}°`;
-    document.getElementById("icon").textContent = WMO_ICON(c.weather_code, !!c.is_day);
-    const now = new Date();
-    const { time, ampm } = fmtTime(now);
-    document.getElementById("time").textContent = time;
-    document.getElementById("ampm").textContent = ampm;
-    document.getElementById("date").textContent = now.toLocaleDateString("es-DO", { weekday:"long", day:"2-digit", month:"short", year:"numeric" });
-    document.getElementById("season").textContent = seasonOf(now.getMonth());
-  } catch (e) {
-    alert(e.message || "Error consultando el clima.");
-  }
-}
-
-document.getElementById("form").addEventListener("submit", (ev)=>{
-  ev.preventDefault();
-  const q = document.getElementById("q").value.trim();
-  if (q) load(q);
-});
-
-load();
 </script>
-</body>
 </html>
