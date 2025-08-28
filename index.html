@@ -32,34 +32,50 @@
 <pre id="out">(sin datos)</pre>
 
 <script>
-  const E = s => String(s)
+  // Utilidades
+  const escapeHTML = (s) => String(s)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;")
-    .replace(/'/g,"&#39;"); // escape básico contra XSS
+    .replace(/'/g,"&#39;");
 
-  const clean = s => String(s).trim()
+  const sanitize = (s) => String(s).trim()
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,"") // quita <script>
-    .replace(/<\/?[^>]+>/g,"")                         // quita etiquetas
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");  // control chars
+    .replace(/<\/?[^>]+>/g,"")                          // quita etiquetas
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");   // quita chars control
 
-  f.onsubmit = (e) => {
+  // Referencias seguras (sin depender del id como variable global)
+  const form   = document.getElementById('f');
+  const emailI = document.getElementById('email');
+  const nameI  = document.getElementById('name');
+  const msgI   = document.getElementById('msg');
+  const status = document.getElementById('status');
+  const out    = document.getElementById('out');
+
+  form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (!f.checkValidity()){
+
+    if (!form.checkValidity()){
       status.innerHTML = '<div class="bad">Revisa los campos en rojo.</div>';
       return;
     }
-    const email = clean(email.value).slice(0,100);
-    const name  = clean(name.value).slice(0,60);
-    const msg   = clean(msg.value).slice(0,300);
 
-    // bloqueo muy básico de inyección (demo)
-    if (/\b(select|insert|update|delete|drop|union|--|#|;)\b/i.test(msg)) {
+    const emailVal = sanitize(emailI.value).slice(0,100);
+    const nameVal  = sanitize(nameI.value).slice(0,60);
+    const msgVal   = sanitize(msgI.value).slice(0,300);
+
+    // Bloqueo muy básico de inyección (solo demo)
+    if (/\b(select|insert|update|delete|drop|union|--|#|;)\b/i.test(msgVal)){
       status.innerHTML = '<div class="bad">Patrón no permitido en el mensaje.</div>';
       return;
     }
 
     status.innerHTML = '<div class="ok">Validado y sanitizado.</div>';
-    out.textContent = `Correo: ${E(email)}\nNombre: ${E(name)}\nMensaje:\n${E(msg)}`;
-  };
+    out.textContent =
+      `Correo: ${escapeHTML(emailVal)}\n` +
+      `Nombre: ${escapeHTML(nameVal)}\n` +
+      `Mensaje:\n${escapeHTML(msgVal)}`;
+  });
 </script>
+
 </html>
+
