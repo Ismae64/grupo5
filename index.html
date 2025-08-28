@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <meta charset="utf-8" />
-<title>Demo fácil: validar + sanitizar</title>
+<title>Validación + Sanitización (ultra simple)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px}
@@ -15,46 +15,46 @@
 <h1>Validación + Sanitización (ultra simple)</h1>
 
 <form id="f" novalidate>
-  <label>Correo</label>
+  <label for="email">Correo</label>
   <input id="email" type="email" required placeholder="tu@correo.com">
 
-  <label>Nombre (solo letras y espacios, 2–60)</label>
+  <label for="name">Nombre (solo letras y espacios, 2–60)</label>
   <input id="name" required pattern="^[A-Za-zÁ-Úá-úÑñ ]{2,60}$" placeholder="Ej. Juan Pérez">
 
-  <label>Mensaje (máx. 300)</label>
+  <label for="msg">Mensaje (máx. 300)</label>
   <textarea id="msg" maxlength="300" rows="4" placeholder="Escribe tu mensaje..."></textarea>
 
   <div id="status"></div>
-  <button>Previsualizar</button>
+  <!-- Botón normal: NO envía el form -->
+  <button type="button" id="previewBtn">Previsualizar</button>
 </form>
 
 <h2>Vista previa segura</h2>
 <pre id="out">(sin datos)</pre>
 
 <script>
-  // Utilidades
+document.addEventListener('DOMContentLoaded', () => {
   const escapeHTML = (s) => String(s)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;")
     .replace(/>/g,"&gt;").replace(/"/g,"&quot;")
     .replace(/'/g,"&#39;");
 
   const sanitize = (s) => String(s).trim()
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,"") // quita <script>
-    .replace(/<\/?[^>]+>/g,"")                          // quita etiquetas
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");   // quita chars control
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,"")
+    .replace(/<\/?[^>]+>/g,"")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");
 
-  // Referencias seguras (sin depender del id como variable global)
   const form   = document.getElementById('f');
   const emailI = document.getElementById('email');
   const nameI  = document.getElementById('name');
   const msgI   = document.getElementById('msg');
   const status = document.getElementById('status');
   const out    = document.getElementById('out');
+  const btn    = document.getElementById('previewBtn');
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    if (!form.checkValidity()){
+  btn.addEventListener('click', () => {
+    // dispara validación nativa del navegador
+    if (!form.reportValidity()) {
       status.innerHTML = '<div class="bad">Revisa los campos en rojo.</div>';
       return;
     }
@@ -63,7 +63,7 @@
     const nameVal  = sanitize(nameI.value).slice(0,60);
     const msgVal   = sanitize(msgI.value).slice(0,300);
 
-    // Bloqueo muy básico de inyección (solo demo)
+    // bloqueo básico de inyección (solo demo)
     if (/\b(select|insert|update|delete|drop|union|--|#|;)\b/i.test(msgVal)){
       status.innerHTML = '<div class="bad">Patrón no permitido en el mensaje.</div>';
       return;
@@ -75,7 +75,6 @@
       `Nombre: ${escapeHTML(nameVal)}\n` +
       `Mensaje:\n${escapeHTML(msgVal)}`;
   });
+});
 </script>
-
 </html>
-
