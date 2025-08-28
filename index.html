@@ -1,80 +1,88 @@
 <!doctype html>
 <html lang="es">
-<meta charset="utf-8" />
-<title>Validación + Sanitización (ultra simple)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<style>
-  body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px}
-  input,textarea,button{width:100%;padding:10px;margin:6px 0;border:1px solid #ccc;border-radius:8px}
-  input:invalid,textarea:invalid{border-color:#d33}
-  pre{background:#f7f7f7;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-word}
-  .ok{color:#155724;background:#d4edda;border:1px solid #c3e6cb;padding:8px;border-radius:8px}
-  .bad{color:#721c24;background:#f8d7da;border:1px solid #f5c6cb;padding:8px;border-radius:8px}
-</style>
+<head>
+  <meta charset="utf-8" />
+  <title>Validación + Sanitización (funciona siempre)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;max-width:720px;margin:24px auto;padding:0 16px}
+    h1{font-size:1.6rem}
+    input,textarea,button{width:100%;padding:10px;margin:6px 0;border:1px solid #ccc;border-radius:8px;font-size:1rem}
+    input:invalid,textarea:invalid{border-color:#d33}
+    pre{background:#f7f7f7;padding:12px;border-radius:8px;white-space:pre-wrap;word-break:break-word}
+    .ok{color:#155724;background:#d4edda;border:1px solid #c3e6cb;padding:8px;border-radius:8px}
+    .bad{color:#721c24;background:#f8d7da;border:1px solid #f5c6cb;padding:8px;border-radius:8px}
+  </style>
+</head>
+<body>
+  <h1>Validación + Sanitización</h1>
 
-<h1>Validación + Sanitización (ultra simple)</h1>
+  <form id="f" onsubmit="return false" novalidate>
+    <label for="emailInput">Correo</label>
+    <input id="emailInput" type="email" required placeholder="tu@correo.com">
 
-<form id="f" novalidate>
-  <label for="email">Correo</label>
-  <input id="email" type="email" required placeholder="tu@correo.com">
+    <label for="fullName">Nombre (solo letras y espacios, 2–60)</label>
+    <input id="fullName" required pattern="^[A-Za-zÁ-Úá-úÑñ ]{2,60}$" placeholder="Ej. Juan Pérez">
 
-  <label for="name">Nombre (solo letras y espacios, 2–60)</label>
-  <input id="name" required pattern="^[A-Za-zÁ-Úá-úÑñ ]{2,60}$" placeholder="Ej. Juan Pérez">
+    <label for="messageInput">Mensaje (máx. 300)</label>
+    <textarea id="messageInput" maxlength="300" rows="4" placeholder="Escribe tu mensaje..."></textarea>
 
-  <label for="msg">Mensaje (máx. 300)</label>
-  <textarea id="msg" maxlength="300" rows="4" placeholder="Escribe tu mensaje..."></textarea>
+    <div id="statusBox"></div>
+    <button type="button" id="previewBtn" onclick="preview()">Previsualizar</button>
+  </form>
 
-  <div id="status"></div>
-  <!-- Botón normal: NO envía el form -->
-  <button type="button" id="previewBtn">Previsualizar</button>
-</form>
+  <h2>Vista previa segura</h2>
+  <pre id="outputBox">(sin datos)</pre>
 
-<h2>Vista previa segura</h2>
-<pre id="out">(sin datos)</pre>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const escapeHTML = (s) => String(s)
-    .replace(/&/g,"&amp;").replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;").replace(/"/g,"&quot;")
-    .replace(/'/g,"&#39;");
-
-  const sanitize = (s) => String(s).trim()
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,"")
-    .replace(/<\/?[^>]+>/g,"")
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");
-
-  const form   = document.getElementById('f');
-  const emailI = document.getElementById('email');
-  const nameI  = document.getElementById('name');
-  const msgI   = document.getElementById('msg');
-  const status = document.getElementById('status');
-  const out    = document.getElementById('out');
-  const btn    = document.getElementById('previewBtn');
-
-  btn.addEventListener('click', () => {
-    // dispara validación nativa del navegador
-    if (!form.reportValidity()) {
-      status.innerHTML = '<div class="bad">Revisa los campos en rojo.</div>';
-      return;
+  <script>
+    // --- Utilidades seguras ---
+    function escapeHTML(s){
+      return String(s)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#39;");
+    }
+    function sanitize(s){
+      return String(s).trim()
+        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,"") // quita <script>
+        .replace(/<\/?[^>]+>/g,"")                          // quita etiquetas
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g,"");   // quita chars control
     }
 
-    const emailVal = sanitize(emailI.value).slice(0,100);
-    const nameVal  = sanitize(nameI.value).slice(0,60);
-    const msgVal   = sanitize(msgI.value).slice(0,300);
+    // --- Lógica de previsualización ---
+    function preview(){
+      var form   = document.getElementById('f');
+      var emailI = document.getElementById('emailInput');
+      var nameI  = document.getElementById('fullName');
+      var msgI   = document.getElementById('messageInput');
+      var status = document.getElementById('statusBox');
+      var out    = document.getElementById('outputBox');
 
-    // bloqueo básico de inyección (solo demo)
-    if (/\b(select|insert|update|delete|drop|union|--|#|;)\b/i.test(msgVal)){
-      status.innerHTML = '<div class="bad">Patrón no permitido en el mensaje.</div>';
-      return;
+      // Dispara validación nativa
+      if (!form.reportValidity()){
+        status.innerHTML = '<div class="bad">Revisa los campos en rojo.</div>';
+        return;
+      }
+
+      var emailVal = sanitize(emailI.value).slice(0,100);
+      var nameVal  = sanitize(nameI.value).slice(0,60);
+      var msgVal   = sanitize(msgI.value).slice(0,300);
+
+      // Bloqueo básico de inyección (solo demo)
+      if (/\b(select|insert|update|delete|drop|union|--|#|;)\b/i.test(msgVal)){
+        status.innerHTML = '<div class="bad">Patrón no permitido en el mensaje.</div>';
+        out.textContent = '(sin datos)';
+        return;
+      }
+
+      status.innerHTML = '<div class="ok">Validado y sanitizado.</div>';
+      out.textContent =
+        'Correo: ' + escapeHTML(emailVal) + '\n' +
+        'Nombre: ' + escapeHTML(nameVal) + '\n' +
+        'Mensaje:\n' + escapeHTML(msgVal);
     }
-
-    status.innerHTML = '<div class="ok">Validado y sanitizado.</div>';
-    out.textContent =
-      `Correo: ${escapeHTML(emailVal)}\n` +
-      `Nombre: ${escapeHTML(nameVal)}\n` +
-      `Mensaje:\n${escapeHTML(msgVal)}`;
-  });
-});
-</script>
+  </script>
+</body>
 </html>
